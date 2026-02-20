@@ -48,7 +48,7 @@ RUN echo '#!/bin/bash' > /start && \
     chmod 755 /start
 
 # Expose ports: 2000-9000 range, plus specific ports 22, 2222, 433, 12267
-EXPOSE 22 2222 433 12267 2000-9000
+EXPOSE 22 2222 433 465 12267 2000-9000
 
 # Start services
 CMD /start
