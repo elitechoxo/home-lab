@@ -36,21 +36,25 @@ RUN wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz &&
     chmod +x ngrok
 
 # Create tiny Python HTTP server
-RUN echo 'from http.server import BaseHTTPRequestHandler, HTTPServer
-class H(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"ONLINE")
-    def log_message(self, *a): pass
-HTTPServer(("0.0.0.0",10000),H).serve_forever()' > /server.py
+RUN printf '%s\n' \
+    'from http.server import BaseHTTPRequestHandler, HTTPServer' \
+    'class H(BaseHTTPRequestHandler):' \
+    '    def do_GET(self):' \
+    '        self.send_response(200)' \
+    '        self.end_headers()' \
+    '        self.wfile.write(b"ONLINE")' \
+    '    def log_message(self, *a): pass' \
+    'HTTPServer(("0.0.0.0",10000),H).serve_forever()' \
+    > /server.py
 
 # Start script
-RUN echo '#!/bin/bash
-python3 /server.py &
-./ngrok config add-authtoken 2bmDkAveY0grVVDlgwVXiOP5ia2_3vyBFrEpUdZou7veySL6p
-./ngrok tcp --region ap 2323 >/dev/null 2>&1 &
-/usr/sbin/sshd -D' > /start && chmod +x /start
+RUN printf '%s\n' \
+    '#!/bin/bash' \
+    'python3 /server.py &' \
+    './ngrok config add-authtoken 2bmDkAveY0grVVDlgwVXiOP5ia2_3vyBFrEpUdZou7veySL6p' \
+    './ngrok tcp --region ap 2323 >/dev/null 2>&1 &' \
+    '/usr/sbin/sshd -D' \
+    > /start && chmod +x /start
 
 EXPOSE 10000 2323
 
