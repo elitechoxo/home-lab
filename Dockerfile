@@ -22,6 +22,9 @@ RUN pacman -Syu --noconfirm && \
 RUN curl -fsSL https://deno.land/install.sh | sh
 ENV PATH="/root/.deno/bin:${PATH}"
 
+# Generate SSH host keys
+RUN ssh-keygen -A
+
 # Configure SSH
 RUN mkdir /run/sshd && \
     echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config && \
