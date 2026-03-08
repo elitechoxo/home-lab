@@ -58,9 +58,9 @@ RUN echo '#!/usr/bin/env python3' > /python_server.py && \
     echo '    def do_GET(self):' >> /python_server.py && \
     echo '        if self.path == "/":' >> /python_server.py && \
     echo '            self.send_response(200)' >> /python_server.py && \
-    echo '            self.send_header("Content-type", "text/html")' >> /python_server.py && \
+    echo '            self.send_header("Content-type", "text/html; charset=utf-8")' >> /python_server.py && \
     echo '            self.end_headers()' >> /python_server.py && \
-    echo '            self.wfile.write(b"""' >> /python_server.py && \
+    echo '            html = """\\' >> /python_server.py && \
     echo '<html><head><title>Render Bypass Server</title></head>' >> /python_server.py && \
     echo '<body style="font-family: Arial; text-align: center; margin-top: 50px;">' >> /python_server.py && \
     echo '<h1>🚀 Render Bypass Server Running</h1>' >> /python_server.py && \
@@ -68,10 +68,10 @@ RUN echo '#!/usr/bin/env python3' > /python_server.py && \
     echo '<p>SSH, Deno, and FFmpeg are also available.</p>' >> /python_server.py && \
     echo '<hr>' >> /python_server.py && \
     echo '<h3>Server Info:</h3>' >> /python_server.py && \
-    echo f'<p>Hostname: {socket.gethostname()}</p>' >> /python_server.py && \
-    echo f'<p>Time: {time.strftime("%Y-%m-%d %H:%M:%S")}</p>' >> /python_server.py && \
-    echo '</body></html>' >> /python_server.py && \
-    echo '"""' >> /python_server.py && \
+    echo '<p>Hostname: {}</p>'.format(socket.gethostname()) >> /python_server.py && \
+    echo '<p>Time: {}</p>'.format(time.strftime("%Y-%m-%d %H:%M:%S")) >> /python_server.py && \
+    echo '</body></html>"""' >> /python_server.py && \
+    echo '            self.wfile.write(html.encode("utf-8"))' >> /python_server.py && \
     echo '        elif self.path == "/health":' >> /python_server.py && \
     echo '            self.send_response(200)' >> /python_server.py && \
     echo '            self.send_header("Content-type", "application/json")' >> /python_server.py && \
@@ -80,7 +80,7 @@ RUN echo '#!/usr/bin/env python3' > /python_server.py && \
     echo '                "status": "healthy",' >> /python_server.py && \
     echo '                "timestamp": time.time(),' >> /python_server.py && \
     echo '                "services": {' >> /python_server.py && \
-    echo '                    "ssh": "available on ports 22, 2222, 2323",' >> /python_server.py && \
+    echo '                    "ssh": "available on port 2323",' >> /python_server.py && \
     echo '                    "deno": "installed",' >> /python_server.py && \
     echo '                    "ffmpeg": "installed",' >> /python_server.py && \
     echo '                    "ngrok": "configured"' >> /python_server.py && \
@@ -134,7 +134,7 @@ RUN echo '#!/bin/bash' > /start && \
 RUN deno --version && ffmpeg -version && python3 --version
 
 # Expose ports (Render expects 10000)
-EXPOSE 22 2222 2323 433 465 12267 2000-9000 8000 8080 3000 5000 10000
+EXPOSE 2323 10000 8080 8000 3000 5000
 
 # Start services
 CMD /start
