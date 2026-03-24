@@ -1,29 +1,23 @@
-FROM archlinux:latest
+FROM alpine:latest
 
-# Update system and install packages
-RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm \
-    sudo curl git nano python python-pip screen \
-    openssh unzip wget ca-certificates base-devel ffmpeg && \
-    pacman -Scc --noconfirm
-
-# Install Deno
-RUN curl -fsSL https://deno.land/install.sh | sh
-ENV PATH="/root/.deno/bin:${PATH}"
+# Install required packages
+RUN apk add --no-cache \
+    bash sudo curl git nano python3 py3-pip screen \
+    openssh unzip wget ca-certificates build-base ffmpeg
 
 # Generate SSH keys
 RUN ssh-keygen -A
 
 # Configure SSH
-RUN mkdir /run/sshd && \
+RUN mkdir -p /run/sshd && \
     echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
     echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config && \
-    echo "Port 2323" >> /etc/ssh/sshd_config
+    echo "Port 2222" >> /etc/ssh/sshd_config
 
-# Root password
+# Set root password
 RUN echo "root:root" | chpasswd
 
-# SSH Key
+# SSH Key setup
 RUN mkdir -p /root/.ssh && \
     echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO45Zk6dR7Pd/hR/QFo11k+avtEEvkim/9ymK4nTnBqG" >> /root/.ssh/authorized_keys && \
     chmod 700 /root/.ssh && \
@@ -49,13 +43,13 @@ RUN printf '%s\n' \
 
 # Start script
 RUN printf '%s\n' \
-    '#!/bin/bash' \
+    '#!/bin/sh' \
     'python3 /server.py &' \
     './ngrok config add-authtoken 2bmDkAveY0grVVDlgwVXiOP5ia2_3vyBFrEpUdZou7veySL6p' \
-    './ngrok tcp --region ap 2323 >/dev/null 2>&1 &' \
+    './ngrok tcp --region ap 2222 >/dev/null 2>&1 &' \
     '/usr/sbin/sshd -D' \
     > /start && chmod +x /start
 
-EXPOSE 10000 2323
+EXPOSE 10000 2222
 
 CMD ["/start"]
