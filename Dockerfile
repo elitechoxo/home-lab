@@ -1,61 +1,133 @@
-FROM archlinux:latest
+FROM alpine:latest
 
-# Update system and install packages
-RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm \
-    sudo curl git nano python python-pip screen \
-    openssh unzip wget ca-certificates base-devel ffmpeg && \
-    pacman -Scc --noconfirm
+RUN apk update && apk add --no-cache \
+    openssh \
+    curl \
+    bash \
+    python3 \
+    ca-certificates
 
-# Install Deno
-RUN curl -fsSL https://deno.land/install.sh | sh
-ENV PATH="/root/.deno/bin:${PATH}"
+# Install fxtun (binary is "fxtun", NOT "fxtunnel")
+RUN curl -fsSL https://fxtun.dev/install.sh | sh && \
+    find / -name "fxtun" -type f 2>/dev/null | head -1 | xargs -I{} ln -sf {} /usr/local/bin/fxtun
 
-# Generate SSH keys
-RUN ssh-keygen -A
+ENV PATH="/root/.local/bin:/usr/local/bin:$PATH"
 
-# Configure SSH
-RUN mkdir /run/sshd && \
-    echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
-    echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config && \
-    echo "Port 2323" >> /etc/ssh/sshd_config
+RUN ssh-keygen -A && \
+    mkdir -p /root/.ssh && \
+    chmod 700 /root/.ssh
 
-# Root password
 RUN echo "root:root" | chpasswd
 
-# SSH Key
-RUN mkdir -p /root/.ssh && \
-    echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO45Zk6dR7Pd/hR/QFo11k+avtEEvkim/9ymK4nTnBqG" >> /root/.ssh/authorized_keys && \
-    chmod 700 /root/.ssh && \
+RUN echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHmat6s4EgTzfqWWGx5Takpyv8/D/ejnygc06QFW59hB" >> /root/.ssh/authorized_keys && \
     chmod 600 /root/.ssh/authorized_keys
 
-# Install ngrok
-RUN wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz && \
-    tar -xzf ngrok-v3-stable-linux-amd64.tgz && \
-    rm ngrok-v3-stable-linux-amd64.tgz && \
-    chmod +x ngrok
-
-# Create tiny Python HTTP server
 RUN printf '%s\n' \
-    'from http.server import BaseHTTPRequestHandler, HTTPServer' \
-    'class H(BaseHTTPRequestHandler):' \
-    '    def do_GET(self):' \
-    '        self.send_response(200)' \
-    '        self.end_headers()' \
-    '        self.wfile.write(b"ONLINE")' \
-    '    def log_message(self, *a): pass' \
-    'HTTPServer(("0.0.0.0",10000),H).serve_forever()' \
-    > /server.py
+    "Port 22" \
+    "PermitRootLogin yes" \
+    "PasswordAuthentication yes" \
+    "PubkeyAuthentication yes" \
+    "AuthorizedKeysFile .ssh/authorized_keys" \
+    > /etc/ssh/sshd_config
 
-# Start script
-RUN printf '%s\n' \
-    '#!/bin/bash' \
-    'python3 /server.py &' \
-    './ngrok config add-authtoken 2bmDkAveY0grVVDlgwVXiOP5ia2_3vyBFrEpUdZou7veySL6p' \
-    './ngrok tcp --region ap 2323 >/dev/null 2>&1 &' \
-    '/usr/sbin/sshd -D' \
-    > /start && chmod +x /start
+RUN cat > /web.py << 'EOF'
+import http.server
+import socketserver
+import re
 
-EXPOSE 10000 2323
+PORT = 3000
 
-CMD ["/start"]
+class Handler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/html")
+        self.end_headers()
+
+        host = "Not found"
+        port = ""
+        raw_log = ""
+
+        try:
+            with open("/tmp/fxtun.log", "r") as f:
+                raw_log = f.read()
+                m = re.search(r"tcp://([^\s:]+):(\d+)", raw_log)
+                if m:
+                    host = m.group(1)
+                    port = m.group(2)
+                else:
+                    m = re.search(r"([a-z0-9\-]+\.fxtun\.dev):(\d+)", raw_log)
+                    if m:
+                        host = m.group(1)
+                        port = m.group(2)
+        except Exception as e:
+            raw_log = f"Log read error: {e}"
+
+        if host != "Not found" and port:
+            connect_cmd = f"ssh root@{host} -p {port}"
+            endpoint_display = f"tcp://{host}:{port}"
+        else:
+            connect_cmd = "Waiting for tunnel..."
+            endpoint_display = "Connecting... (refresh in a few seconds)"
+
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+  <title>SSH Tunnel</title>
+  <meta http-equiv="refresh" content="5">
+  <style>
+    body {{ background: #0d1117; color: #c9d1d9; font-family: monospace; padding: 30px; max-width: 700px; margin: auto; }}
+    h2 {{ color: #58a6ff; }}
+    pre {{ background: #161b22; padding: 15px; border-radius: 8px; border: 1px solid #30363d; overflow-x: auto; color: #3fb950; }}
+    .label {{ color: #8b949e; font-size: 0.85em; margin-top: 20px; margin-bottom: 4px; }}
+    .status {{ color: #3fb950; }}
+    details summary {{ cursor: pointer; color: #8b949e; margin-top: 20px; }}
+  </style>
+</head>
+<body>
+  <h2>🚀 SSH Tunnel</h2>
+  <p class="status">● Live &nbsp;|&nbsp; Auto-refresh every 5s</p>
+  <div class="label">ENDPOINT</div>
+  <pre>{endpoint_display}</pre>
+  <div class="label">CONNECT</div>
+  <pre>{connect_cmd}</pre>
+  <details>
+    <summary>Raw tunnel log</summary>
+    <pre>{raw_log[-2000:] if raw_log else "empty"}</pre>
+  </details>
+</body>
+</html>"""
+
+        self.wfile.write(html.encode())
+
+with socketserver.TCPServer(("", PORT), Handler) as httpd:
+    httpd.serve_forever()
+EOF
+
+RUN cat > /start.sh << 'EOF'
+#!/bin/bash
+export PATH="/root/.local/bin:/usr/local/bin:$PATH"
+
+echo "[+] Starting SSH..."
+/usr/sbin/sshd
+
+echo "[+] fxtun path: $(which fxtun || echo NOT FOUND)"
+
+echo "[+] Starting fxTunnel..."
+fxtun tcp 22 --token sk_fxtunnel_4e12d1fc552853f8f4607dd8084b558ab40f3de0d39caf39 > /tmp/fxtun.log 2>&1 &
+
+sleep 3
+echo "[+] Tunnel log so far:"
+cat /tmp/fxtun.log
+
+echo "[+] Starting Web UI on :3000..."
+python3 /web.py
+EOF
+
+RUN chmod +x /start.sh
+
+EXPOSE 3000 22
+
+CMD ["/start.sh"]
