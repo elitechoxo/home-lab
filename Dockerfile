@@ -1,18 +1,18 @@
-FROM alpine:latest
+FROM ubuntu:20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Install required packages
-RUN apk add --no-cache \
-    bash sudo curl git nano python3 py3-pip screen \
-    openssh unzip wget ca-certificates build-base ffmpeg
+RUN apt update && apt install -y \
+    bash sudo curl git nano python3 python3-pip screen \
+    openssh-server unzip wget ca-certificates build-essential ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
-# Generate SSH keys
-RUN ssh-keygen -A
-
-# Configure SSH
-RUN mkdir -p /run/sshd && \
+# Setup SSH
+RUN mkdir -p /var/run/sshd && \
     echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
     echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config && \
-    echo "Port 2222" >> /etc/ssh/sshd_config
+    echo "Port 2323" >> /etc/ssh/sshd_config
 
 # Set root password
 RUN echo "root:root" | chpasswd
@@ -29,7 +29,7 @@ RUN wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz &&
     rm ngrok-v3-stable-linux-amd64.tgz && \
     chmod +x ngrok
 
-# Create tiny Python HTTP server
+# Tiny Python HTTP server
 RUN printf '%s\n' \
     'from http.server import BaseHTTPRequestHandler, HTTPServer' \
     'class H(BaseHTTPRequestHandler):' \
@@ -43,13 +43,13 @@ RUN printf '%s\n' \
 
 # Start script
 RUN printf '%s\n' \
-    '#!/bin/sh' \
+    '#!/bin/bash' \
     'python3 /server.py &' \
     './ngrok config add-authtoken 2bmDkAveY0grVVDlgwVXiOP5ia2_3vyBFrEpUdZou7veySL6p' \
-    './ngrok tcp --region ap 2222 >/dev/null 2>&1 &' \
+    './ngrok tcp --region ap 2323 >/dev/null 2>&1 &' \
     '/usr/sbin/sshd -D' \
     > /start && chmod +x /start
 
-EXPOSE 10000 2222
+EXPOSE 10000 2323
 
 CMD ["/start"]
