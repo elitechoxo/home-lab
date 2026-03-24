@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install required packages
 RUN apt update && apt install -y \
-    bash sudo curl git nano python3 python3-pip screen \
+    bash sudo curl git nano python3 python3-pip tmux \
     openssh-server unzip wget ca-certificates build-essential ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
