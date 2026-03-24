@@ -1,18 +1,21 @@
+
 FROM debian:bookworm-slim
 
 # Install required packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash sudo curl git nano python3 python3-pip tmux \
+    bash sudo curl git nano python3 python3-pip screen \
     openssh-server unzip wget ca-certificates \
     build-essential ffmpeg \
     && rm -rf /var/lib/apt/lists/*
+
+# Generate SSH keys
+RUN ssh-keygen -A
 
 # Configure SSH
 RUN mkdir -p /run/sshd && \
     echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
     echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config && \
-    echo "Port 2222" >> /etc/ssh/sshd_config && \
-    ssh-keygen -A
+    echo "Port 2222" >> /etc/ssh/sshd_config
 
 # Set root password
 RUN echo "root:root" | chpasswd
@@ -24,11 +27,12 @@ RUN mkdir -p /root/.ssh && \
     chmod 600 /root/.ssh/authorized_keys
 
 # Install ngrok
-RUN wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz && \
-    tar -xzf ngrok-v3-stable-linux-amd64.tgz -C /usr/local/bin && \
-    rm ngrok-v3-stable-linux-amd64.tgz
+RUN wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz && \
+    tar -xzf ngrok-v3-stable-linux-amd64.tgz && \
+    rm ngrok-v3-stable-linux-amd64.tgz && \
+    chmod +x ngrok
 
-# Keep-alive HTTP server
+# Create tiny Python HTTP server
 RUN printf '%s\n' \
     'from http.server import BaseHTTPRequestHandler, HTTPServer' \
     'class H(BaseHTTPRequestHandler):' \
@@ -44,8 +48,8 @@ RUN printf '%s\n' \
 RUN printf '%s\n' \
     '#!/bin/sh' \
     'python3 /server.py &' \
-    'ngrok config add-authtoken 2bmDkAveY0grVVDlgwVXiOP5ia2_3vyBFrEpUdZou7veySN6p' \
-    'ngrok tcp --region ap 2222 >/dev/null 2>&1 &' \
+    './ngrok config add-authtoken 2bmDkAveY0grVVDlgwVXiOP5ia2_3vyBFrEpUdZou7veySL6p' \
+    './ngrok tcp --region ap 2222 >/dev/null 2>&1 &' \
     '/usr/sbin/sshd -D' \
     > /start && chmod +x /start
 
