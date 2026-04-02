@@ -1,11 +1,12 @@
-FROM alpine:latest
+FROM debian:bookworm-slim
 
-RUN apk update && apk add --no-cache \
-    openssh \
-    curl \
-    bash \
-    python3 \
-    ca-certificates
+# Install required packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash sudo curl git nano python3 python3-pip \
+    openssh-server unzip ca-certificates \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
 
 # Install fxtun (binary is "fxtun", NOT "fxtunnel")
 RUN curl -fsSL https://fxtun.dev/install.sh | sh && \
@@ -13,22 +14,25 @@ RUN curl -fsSL https://fxtun.dev/install.sh | sh && \
 
 ENV PATH="/root/.local/bin:/usr/local/bin:$PATH"
 
-RUN ssh-keygen -A && \
-    mkdir -p /root/.ssh && \
-    chmod 700 /root/.ssh
 
+# Generate SSH keys
+RUN ssh-keygen -A
+
+# Configure SSH
+RUN mkdir -p /run/sshd && \
+    echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
+    echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config && \
+    echo "Port 2222" >> /etc/ssh/sshd_config
+
+# Set root password
 RUN echo "root:root" | chpasswd
 
-RUN echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHmat6s4EgTzfqWWGx5Takpyv8/D/ejnygc06QFW59hB" >> /root/.ssh/authorized_keys && \
+# SSH Key setup
+RUN mkdir -p /root/.ssh && \
+    echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO45Zk6dR7Pd/hR/QFo11k+avtEEvkim/9ymK4nTnBqG" >> /root/.ssh/authorized_keys && \
+    chmod 700 /root/.ssh && \
     chmod 600 /root/.ssh/authorized_keys
 
-RUN printf '%s\n' \
-    "Port 22" \
-    "PermitRootLogin yes" \
-    "PasswordAuthentication yes" \
-    "PubkeyAuthentication yes" \
-    "AuthorizedKeysFile .ssh/authorized_keys" \
-    > /etc/ssh/sshd_config
 
 RUN cat > /web.py << 'EOF'
 import http.server
