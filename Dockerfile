@@ -1,19 +1,19 @@
-FROM debian:bookworm-slim
+FROM voidlinux/voidlinux:latest
 
-# Install required packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash sudo curl git nano python3 python3-pip \
-    openssh-server unzip ca-certificates \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+# Update & install required packages (Void uses xbps)
+RUN xbps-install -Syu && \
+    xbps-install -y \
+    bash sudo curl git nano \
+    python3 python3-pip \
+    openssh unzip ca-certificates \
+    gcc make binutils \
+    && xbps-remove -O
 
-
-# Install fxtun (binary is "fxtun", NOT "fxtunnel")
+# Install fxtun
 RUN curl -fsSL https://fxtun.dev/install.sh | sh && \
     find / -name "fxtun" -type f 2>/dev/null | head -1 | xargs -I{} ln -sf {} /usr/local/bin/fxtun
 
 ENV PATH="/root/.local/bin:/usr/local/bin:$PATH"
-
 
 # Generate SSH keys
 RUN ssh-keygen -A
@@ -109,6 +109,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 with socketserver.TCPServer(("", PORT), Handler) as httpd:
     httpd.serve_forever()
 EOF
+
 
 RUN cat > /start.sh << 'EOF'
 #!/bin/bash
