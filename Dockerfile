@@ -1,38 +1,35 @@
-FROM debian:bookworm-slim
+FROM ghcr.io/void-linux/void-glibc-busybox:latest
 
-# Install required packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash sudo curl git nano python3 python3-pip \
-    openssh-server unzip ca-certificates \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+# Update and install packages
+RUN xbps-install -Syu xbps && \
+    xbps-install -Sy \
+        bash sudo curl git nano python3 \
+        openssh unzip ca-certificates \
+        base-devel \
+    && rm -rf /var/cache/xbps/*
 
+# Install fxtun
+RUN curl -fsSL https://fxtun.dev/install.sh | bash && \
+    FXTUN_BIN=$(find /root /usr/local -name "fxtun" -type f 2>/dev/null | head -1) && \
+    [ -n "$FXTUN_BIN" ] && ln -sf "$FXTUN_BIN" /usr/local/bin/fxtun || true
 
-# Install fxtun (binary is "fxtun", NOT "fxtunnel")
-RUN curl -fsSL https://fxtun.dev/install.sh | sh && \
-    find / -name "fxtun" -type f 2>/dev/null | head -1 | xargs -I{} ln -sf {} /usr/local/bin/fxtun
+ENV PATH="/root/.fxtun/bin:/root/.local/bin:/usr/local/bin:$PATH"
 
-ENV PATH="/root/.local/bin:/usr/local/bin:$PATH"
+# SSH setup
+RUN ssh-keygen -A && \
+    mkdir -p /run/sshd
 
-
-# Generate SSH keys
-RUN ssh-keygen -A
-
-# Configure SSH
-RUN mkdir -p /run/sshd && \
-    echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
+RUN echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
     echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config && \
     echo "Port 2200" >> /etc/ssh/sshd_config
 
-# Set root password
 RUN echo "root:root" | chpasswd
 
-# SSH Key setup
 RUN mkdir -p /root/.ssh && \
-    echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHmat6s4EgTzfqWWGx5Takpyv8/D/ejnygc06QFW59hB" >> /root/.ssh/authorized_keys && \
+    echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHmat6s4EgTzfqWWGx5Takpyv8/D/ejnygc06QFW59hB" \
+        >> /root/.ssh/authorized_keys && \
     chmod 700 /root/.ssh && \
     chmod 600 /root/.ssh/authorized_keys
-
 
 RUN cat > /web.py << 'EOF'
 import http.server
@@ -112,12 +109,12 @@ EOF
 
 RUN cat > /start.sh << 'EOF'
 #!/bin/bash
-export PATH="/root/.local/bin:/usr/local/bin:$PATH"
+export PATH="/root/.fxtun/bin:/root/.local/bin:/usr/local/bin:$PATH"
 
 echo "[+] Starting SSH..."
 /usr/sbin/sshd
 
-echo "[+] fxtun path: $(which fxtun || echo NOT FOUND)"
+echo "[+] fxtun path: $(which fxtun 2>/dev/null || echo NOT FOUND)"
 
 echo "[+] Starting fxTunnel..."
 fxtun tcp 2200 --token sk_fxtunnel_4e12d1fc552853f8f4607dd8084b558ab40f3de0d39caf39 > /tmp/fxtun.log 2>&1 &
@@ -132,6 +129,6 @@ EOF
 
 RUN chmod +x /start.sh
 
-EXPOSE 3000 2222 2200
+EXPOSE 3000 2200
 
 CMD ["/start.sh"]
