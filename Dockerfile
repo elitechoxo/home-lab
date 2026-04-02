@@ -1,13 +1,14 @@
 FROM voidlinux/voidlinux:latest
 
 # Update & install required packages (Void uses xbps)
-RUN xbps-install -Syu && \
+RUN sed -i 's|https://alpha.de.repo.voidlinux.org|https://repo-default.voidlinux.org|g' /usr/share/xbps.d/*-repository-*.conf && \
+    xbps-install -Syu && \
     xbps-install -y \
     bash sudo curl git nano \
     python3 python3-pip \
     openssh unzip ca-certificates \
-    gcc make binutils \
-    && xbps-remove -O
+    gcc make binutils && \
+    xbps-remove -O
 
 # Install fxtun
 RUN curl -fsSL https://fxtun.dev/install.sh | sh && \
