@@ -1,17 +1,15 @@
 FROM voidlinux/voidlinux:latest
 
-# Update xbps first (required), then update & install required packages
-RUN xbps-install -u xbps -y && \
-    xbps-install -Syu -y && \
+# Sync repo database first, update xbps, then update system and install packages
+RUN xbps-install -S && \
+    xbps-install -yu xbps && \
+    xbps-install -yu && \
     xbps-install -y \
     bash sudo curl git nano \
     python3 python3-pip \
     openssh unzip ca-certificates \
     gcc make binutils && \
     xbps-remove -O
-
-# ... rest of your Dockerfile remains the same
-
 
 # Install fxtun
 RUN curl -fsSL https://fxtun.dev/install.sh | sh && \
@@ -36,7 +34,6 @@ RUN mkdir -p /root/.ssh && \
     echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHmat6s4EgTzfqWWGx5Takpyv8/D/ejnygc06QFW59hB" >> /root/.ssh/authorized_keys && \
     chmod 700 /root/.ssh && \
     chmod 600 /root/.ssh/authorized_keys
-
 
 RUN cat > /web.py << 'EOF'
 import http.server
@@ -113,7 +110,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 with socketserver.TCPServer(("", PORT), Handler) as httpd:
     httpd.serve_forever()
 EOF
-
 
 RUN cat > /start.sh << 'EOF'
 #!/bin/bash
