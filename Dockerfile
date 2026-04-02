@@ -120,7 +120,7 @@ echo "[+] Starting SSH..."
 echo "[+] fxtun path: $(which fxtun || echo NOT FOUND)"
 
 echo "[+] Starting fxTunnel..."
-fxtun tcp 2222 --token sk_fxtunnel_4e12d1fc552853f8f4607dd8084b558ab40f3de0d39caf39 > /tmp/fxtun.log 2>&1 &
+fxtun tcp 2121 --token sk_fxtunnel_4e12d1fc552853f8f4607dd8084b558ab40f3de0d39caf39 > /tmp/fxtun.log 2>&1 &
 
 sleep 3
 echo "[+] Tunnel log so far:"
