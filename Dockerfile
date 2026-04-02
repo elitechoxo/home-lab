@@ -23,7 +23,7 @@ RUN echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
     echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config && \
     echo "Port 2200" >> /etc/ssh/sshd_config
 
-RUN echo "root:root" | passwd --stdin root
+
 
 RUN mkdir -p /root/.ssh && \
     echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHmat6s4EgTzfqWWGx5Takpyv8/D/ejnygc06QFW59hB" \
