@@ -13,7 +13,7 @@ RUN curl -fsSL https://fxtun.dev/install.sh | bash && \
     FXTUN_BIN=$(find /root /usr/local -name "fxtun" -type f 2>/dev/null | head -1) && \
     [ -n "$FXTUN_BIN" ] && ln -sf "$FXTUN_BIN" /usr/local/bin/fxtun || true
 
-ENV PATH="/root/.fxtun/bin:/root/.local/bin:/usr/local/bin:$PATH"
+ENV PATH="/root/.fxtun/bin:/root/.local/bin:/usr/local/bin:$PATH" 
 
 # SSH setup
 RUN ssh-keygen -A && \
@@ -23,7 +23,7 @@ RUN echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
     echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config && \
     echo "Port 2200" >> /etc/ssh/sshd_config
 
-RUN echo "root:root" | chpasswd
+RUN echo "root:root" | passwd --stdin root
 
 RUN mkdir -p /root/.ssh && \
     echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHmat6s4EgTzfqWWGx5Takpyv8/D/ejnygc06QFW59hB" \
