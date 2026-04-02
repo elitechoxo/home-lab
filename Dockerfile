@@ -21,7 +21,7 @@ RUN ssh-keygen -A && \
 
 RUN echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
     echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config && \
-    echo "Port 2200" >> /etc/ssh/sshd_config
+    echo "Port 7000" >> /etc/ssh/sshd_config
 
 
 
@@ -117,7 +117,7 @@ echo "[+] Starting SSH..."
 echo "[+] fxtun path: $(which fxtun 2>/dev/null || echo NOT FOUND)"
 
 echo "[+] Starting fxTunnel..."
-fxtun tcp 2200 --token sk_fxtunnel_4e12d1fc552853f8f4607dd8084b558ab40f3de0d39caf39 > /tmp/fxtun.log 2>&1 &
+fxtun tcp 7000 --token sk_fxtunnel_4e12d1fc552853f8f4607dd8084b558ab40f3de0d39caf39 > /tmp/fxtun.log 2>&1 &
 
 sleep 3
 echo "[+] Tunnel log so far:"
@@ -129,6 +129,6 @@ EOF
 
 RUN chmod +x /start.sh
 
-EXPOSE 3000 2200
+EXPOSE 3000 2200 7000
 
 CMD ["/start.sh"]
