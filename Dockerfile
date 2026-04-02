@@ -1,21 +1,19 @@
-FROM voidlinux/voidlinux:latest
+FROM debian:bookworm-slim
 
-# Sync repo database first, update xbps, then update system and install packages
-RUN xbps-install -S && \
-    xbps-install -yu xbps && \
-    xbps-install -yu && \
-    xbps-install -y \
-    bash sudo curl git nano \
-    python3 python3-pip \
-    openssh unzip ca-certificates \
-    gcc make binutils && \
-    xbps-remove -O
+# Install required packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash sudo curl git nano python3 python3-pip \
+    openssh-server unzip ca-certificates \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install fxtun
+
+# Install fxtun (binary is "fxtun", NOT "fxtunnel")
 RUN curl -fsSL https://fxtun.dev/install.sh | sh && \
     find / -name "fxtun" -type f 2>/dev/null | head -1 | xargs -I{} ln -sf {} /usr/local/bin/fxtun
 
 ENV PATH="/root/.local/bin:/usr/local/bin:$PATH"
+
 
 # Generate SSH keys
 RUN ssh-keygen -A
@@ -24,7 +22,7 @@ RUN ssh-keygen -A
 RUN mkdir -p /run/sshd && \
     echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
     echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config && \
-    echo "Port 2121" >> /etc/ssh/sshd_config
+    echo "Port 2200" >> /etc/ssh/sshd_config
 
 # Set root password
 RUN echo "root:root" | chpasswd
@@ -34,6 +32,7 @@ RUN mkdir -p /root/.ssh && \
     echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHmat6s4EgTzfqWWGx5Takpyv8/D/ejnygc06QFW59hB" >> /root/.ssh/authorized_keys && \
     chmod 700 /root/.ssh && \
     chmod 600 /root/.ssh/authorized_keys
+
 
 RUN cat > /web.py << 'EOF'
 import http.server
@@ -121,7 +120,7 @@ echo "[+] Starting SSH..."
 echo "[+] fxtun path: $(which fxtun || echo NOT FOUND)"
 
 echo "[+] Starting fxTunnel..."
-fxtun tcp 2121 --token sk_fxtunnel_4e12d1fc552853f8f4607dd8084b558ab40f3de0d39caf39 > /tmp/fxtun.log 2>&1 &
+fxtun tcp 2200 --token sk_fxtunnel_4e12d1fc552853f8f4607dd8084b558ab40f3de0d39caf39 > /tmp/fxtun.log 2>&1 &
 
 sleep 3
 echo "[+] Tunnel log so far:"
@@ -133,6 +132,6 @@ EOF
 
 RUN chmod +x /start.sh
 
-EXPOSE 3000 2222 2121
+EXPOSE 3000 2222 2200
 
 CMD ["/start.sh"]
